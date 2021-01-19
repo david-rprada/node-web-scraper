@@ -5,11 +5,10 @@ const fetch = require('node-fetch');
 class ClienteWA {
 
     // Cliente. Peticion asíncrona POST a CrearMensaje
-    static async CrearMensajePOST(dia, hora) {
+    static async CrearMensajePOST(dia, hora, texto) {
 
         const urlWA = process.env.URL_API_WA;
-        const textoWA = `Hey! se ha completado la reserva correctamente para el día ${dia} y hora ${hora}`;
-        const data = {texto: textoWA, to: process.env.NUM_DESTINATARIO};
+        const data = {texto: texto, to: process.env.NUM_DESTINATARIO};
 
         fetch(urlWA + '/CrearMensaje', {
             method: 'POST',
