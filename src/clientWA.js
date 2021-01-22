@@ -1,4 +1,3 @@
-
 // Importamos módulos
 const fetch = require('node-fetch');
 

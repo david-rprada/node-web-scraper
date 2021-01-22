@@ -3,6 +3,7 @@ const puppeteer = require('puppeteer'); // API para realizar web scraping0
 const cron = require('node-cron'); // Programdor de tareas temporizables
 const emoji = require('node-emoji'); // Emojis wa
 const clienteWA = require('./src/clientWA'); //  Cliente de WhatsApp para notificar
+const utils = require('./src/utils'); //  Clase de utilidades: fechas
 
 // Cargamos variables de entorno del archivo .env
 const dotenv = require('dotenv');
@@ -17,39 +18,51 @@ dotenv.config();
     await page.setViewport({ width: 1280, height: 800 });
     let reservaCompletada = false;
 
-    // Vamos a la pagina de las piscinas de Salburua
-    await page.goto(process.env.URL_WEB_SCRAPER);
-    await page.waitForTimeout(2000);
+    try{
 
-    // Leemos los enlaces del día para Piscina Grande
-    const enlaces = await getEnlaces(page);
+        // Vamos a la pagina de las piscinas de Salburua
+        await page.goto(process.env.URL_WEB_SCRAPER);
+        await page.waitForTimeout(2000);
 
-    // Y los procesamos
-    for (let enlaceDia of enlaces){
-        
-        // Comprobamos si el día tiene plazas disponibles en la primera sesion (8:00 - 9:00)
-        let { dia, hora, selBtnReserva, actionReserva, params, isDisponible } = await checkDispPrimeraSesion(page, enlaceDia);
-        
-        // Si está disponible y ha podido realizar la reserva
-        if (isDisponible && realizarReserva(page, selBtnReserva, actionReserva, dia, hora, params)){
+        // Leemos los enlaces del día para Piscina Grande
+        const enlaces = await getEnlaces(page);
+
+        // Y los procesamos
+        for (let enlaceDia of enlaces){
             
-            // Notificar por WhatsApp
-            const textoWA = `${emoji.get('robot_face')} OK! se ha completado la reserva correctamente para el día ${dia} y hora ${hora}`;
-            clienteWA.CrearMensajePOST(textoWA);
+            // Comprobamos si el día tiene plazas disponibles en la primera sesion (8:00 - 9:00)
+            let { dia, hora, selBtnReserva, isDisponible } = await checkDispPrimeraSesion(page, enlaceDia);
+            
+            // Si está disponible y ha podido realizar la reserva
+            if (isDisponible && await realizarReserva(page, selBtnReserva, dia, hora)){
+                
+                // Notificar por WhatsApp
+                const textoWA = `${emoji.get('robot_face')} OK! se ha completado la reserva correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
+                clienteWA.CrearMensajePOST(textoWA);
 
-            // Marcamos flag y salimos
-            reservaCompletada = true;
-            break;
+                // y salimos
+                reservaCompletada = true;
+                break;
+            }
         }
+
+        // Si no ha podido reservar sesión en ningun día, lo notificamos por WhatsApp
+        if (!reservaCompletada){
+            const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
+            clienteWA.CrearMensajePOST(textoWA);
+        }
+                
+        await browser.close();  
+    }
+    catch(error){
+
+        console.log("Ha ocurrido un error -> " + error.message);
+
+        // Notificamos por WhatsApp el error
+        //const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${error.message}`;
+        //clienteWA.CrearMensajePOST(textoWA);
     }
 
-    // Si no ha podido reservar sesión en ningun día, lo notificamos por WhatsApp
-    if (!reservaCompletada){
-        const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
-        clienteWA.CrearMensajePOST(textoWA);
-    }
-    
-    await browser.close();
 })();
 
 // Obtenemos todos los enlaces del día para la Piscina Grande
@@ -100,25 +113,22 @@ async function checkDispPrimeraSesion(page, enlace){
     }, '.magic-table tbody tr:nth-child(1) td:nth-child(3)');
     console.log(hora);
   
+    // ¿Tenemos plazas libres a primera hora 8:00 - 9:00?
     let actionReserva = "";
     let formReserva = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.magic-table tbody tr:nth-child(1) td:nth-child(6) form'))
-    .map(el => el.action));
+        Array.from(document.querySelectorAll('.magic-table tbody tr:nth-child(1) td:nth-child(6) form'))
+        .map(el => el.action));
     console.log(formReserva);
 
-    // Si hay botón de inscripción, guardamos el action.do
-    if (formReserva && formReserva.length == 1) actionReserva = formReserva[0];
+    // Si hay botón de inscripción es que hay plazas libres, guardamos el action.do
+    if (formReserva && formReserva.length == 1)
+        actionReserva = formReserva[0];
 
-    let params = await page.evaluate(() =>
-     Array.from(document.querySelectorAll('.magic-table tbody tr:nth-child(1) td:nth-child(6) form input[type=hidden]'))
-     .map(el => el.value));
-     console.log(params);
-
-    let selBtnReserva = '.magic-table tbody tr:nth-child(1) td:nth-child(6) form input[type="submit"]';
+    // Selector para el botón de reserva encontrado
+    let selBtnReserva = '.magic-table tbody tr:nth-child(1) td:nth-child(6) form';
 
     // Definimos JSON con los elementos de la reserva
-    let sesion = {dia: dia, hora: hora, selBtnReserva, actionReserva: actionReserva,
-                  params: params, isDisponible: (actionReserva !== "")};
+    let sesion = {dia: dia, hora: hora, selBtnReserva, isDisponible: (actionReserva !== "")};
 
     console.log('checkDispPrimeraSesion. Dia: ' + sesion.dia + " Hora: " + sesion.hora + " IsDisponible: " + sesion.isDisponible);
 
@@ -131,55 +141,39 @@ async function checkDispPrimeraSesion(page, enlace){
 }
 
 // Completa el formulario de reserva de plaza en el día disponible encontrado
-async function realizarReserva(page, selBtnReserva, actionReserva, dia, hora, params){
+async function realizarReserva(page, selBtnReserva, dia, hora){
 
     // Validar argumentos
-    if (!page || !actionReserva || params.length === 0)
+    if (!page || !selBtnReserva)
         return false;
 
-    await page.click(selBtnReserva);
-    await page.waitForTimeout(3000);
-    
-    // Formamos la url del action .do (java struts) de la reserva  + ?params
-    //let urlReserva = actionReserva + "?";
-    //params.forEach(param => { urlReserva+= "&" + param; });
+    // Realizamos click sobre el botón de reserva encontrado
+    await Promise.all([
+        page.waitForNavigation(),
+        page.$eval(selBtnReserva, form => form.submit())
+    ]);
+        
+    // Buscamos los enlaces de tipos de reserva
+    let enlaces = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('.contenido ul li a'))
+        .map(el => el.href));
+        
+    if (!enlaces || enlaces.length === 0) return false;
 
-    // Vamos a la pagina de la reserva
-    //await page.goto(urlReserva);
-    //await page.waitForSelector('h4');
+    // Y vamos al formulario de reserva mediante enlace Datos Personales
+    let urlFormulario = enlaces[1];
+    await Promise.all([
+        page.waitForNavigation(),
+        await page.goto(urlFormulario)
+    ]);
 
-    // Ahora nos muestra la pagina de elección de forma de inscripcion
-    let urlFormulario = await page.evaluate(() => {
-        let items = document.querySelectorAll('.contenido ul li a');
-
-        // Log en la consola de google chromium pq estamos en el page context por estar en evaluate
-        console.log("Items enlaces forma inscripción: " + items.length);
-
-        // Buscamos el enlace de Inscripcion mediante datos personales        
-        let enlaceDatosPer;
-        for (let item of items) {
-            if (item.text === 'Acceder mediante los datos personales'){
-                enlaceDatosPer = item;
-                break;
-            }
-        }
-        return enlaceDatosPer;
-    });
-    
-    // Si no hemos encontrado el enlace, no podemos continuar
-    if (!urlFormulario) return false;
-
-    // Vamos a la pagina final del formulario de la reserva
-    await page.goto(urlFormulario);
-    await page.waitForSelector('h4');
-
-    // Rellenamos el formulario con los datos personales
-    await page.$eval('input[name=nombre]', el => el.value = process.env.NOMBRE);
-    await page.$eval('input[name=apellido1]', el => el.value = process.env.APELLIDO1);
-    await page.$eval('input[name=apellido2]', el => el.value = process.env.APELLIDO2);
-    await page.$eval('input[name=dni]', el => el.value = process.env.DNI);
-    await page.$eval('input[name=fechaNacimiento]', el => el.value = process.env.FECHA_NACIMIENTO);
-    await page.$eval('input[name=telefono]', el => el.value = process.env.TELEFONO);
+    // Rellenamos el formulario
+    await page.type('input[name=nombre]', process.env.NOMBRE);
+    await page.type('input[name=apellido1]', process.env.APELLIDO1);
+    await page.type('input[name=apellido2]', process.env.APELLIDO2);
+    await page.type('input[name=dni]', process.env.DNI);
+    await page.type('input[name=fechaNacimiento]', process.env.FECHA_NACIMIENTO);
+    await page.type('input[name=telefono]', process.env.TELEFONO);
     await page.select('#sexo', 'V');
 
     // Confirmar inscripción
@@ -191,11 +185,12 @@ async function realizarReserva(page, selBtnReserva, actionReserva, dia, hora, pa
 
     // Reserva completada: btn Submit 'Justificante Actividad'
     let btnJustificante = await page.evaluate((sel) => {
-        return document.querySelector(sel).innerText;
+        return document.querySelector(sel);
     }, 'input[type=submit]');
 
-    // Si no ha podido completar la reserva
-    if (!btnJustificante) return false; 
+    // ¿Ha podido completar la reserva?
+    if (!btnJustificante || btnJustificante.innerText != 'Justificante Actividad')
+        return false; 
 
     // Si llegamos hasta aquí, ha realizado OK la reserva
     return true;
