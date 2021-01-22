@@ -59,10 +59,9 @@ dotenv.config();
         console.log("Ha ocurrido un error -> " + error.message);
 
         // Notificamos por WhatsApp el error
-        //const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${error.message}`;
-        //clienteWA.CrearMensajePOST(textoWA);
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${error.message}`;
+        clienteWA.CrearMensajePOST(textoWA);
     }
-
 })();
 
 // Obtenemos todos los enlaces del día para la Piscina Grande
@@ -71,14 +70,14 @@ async function getEnlaces(page){
     const enlaces = await page.evaluate(() => {
         let items = document.querySelectorAll('.listaDosColumnas li a');
 
-        // Log en la consola de google chromium pq estamos en el page context por estar en evaluate
-        console.log("Items: " + items.length);
-
         // Los añadimos a nuestro array
         let allLinks = [];
         items.forEach((item) => { allLinks.push(item.href); })
 
-        // Y devolvemos solo los 4 primeros en orden, los de piscina grande x 4 días
+        // Y devolvemos enlaces de la piscina grande x 4 días
+        //return allLinks.slice(0, 4);
+
+        // Y devolvemos enlaces de la piscina pequeña x 4 días
         return allLinks.slice(4, 8);
     });
 
@@ -91,8 +90,6 @@ async function getEnlaces(page){
 // Comprueba si la primera sesión 8:00 - 9:00 hrs para el día del enlace está disponible
 async function checkDispPrimeraSesion(page, enlace){
     
-    console.log(checkDispPrimeraSesion + " Enlace: " + enlace);
-
     // Validar argumentos
     if (!page || !enlace) 
         return {isDisponible: false};
@@ -106,20 +103,17 @@ async function checkDispPrimeraSesion(page, enlace){
     let dia = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText
     }, '.magic-table tbody tr:nth-child(1) td:nth-child(1)');
-    console.log(dia);
-
+    
     let hora = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText;
     }, '.magic-table tbody tr:nth-child(1) td:nth-child(3)');
-    console.log(hora);
-  
+      
     // ¿Tenemos plazas libres a primera hora 8:00 - 9:00?
     let actionReserva = "";
     let formReserva = await page.evaluate(() =>
         Array.from(document.querySelectorAll('.magic-table tbody tr:nth-child(1) td:nth-child(6) form'))
         .map(el => el.action));
-    console.log(formReserva);
-
+    
     // Si hay botón de inscripción es que hay plazas libres, guardamos el action.do
     if (formReserva && formReserva.length == 1)
         actionReserva = formReserva[0];
@@ -129,8 +123,6 @@ async function checkDispPrimeraSesion(page, enlace){
 
     // Definimos JSON con los elementos de la reserva
     let sesion = {dia: dia, hora: hora, selBtnReserva, isDisponible: (actionReserva !== "")};
-
-    console.log('checkDispPrimeraSesion. Dia: ' + sesion.dia + " Hora: " + sesion.hora + " IsDisponible: " + sesion.isDisponible);
 
     if (sesion.isDisponible)
         console.log(`OK. Hay plaza libre encontrada en el día ${sesion.dia} a la hora ${sesion.hora}`);
