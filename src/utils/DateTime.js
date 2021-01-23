@@ -1,4 +1,4 @@
-class Utils {
+class DateTime {
    
     static getDateTimeNow() {
         
@@ -28,4 +28,4 @@ class Utils {
     }
 }
 
-module.exports = Utils;
+module.exports = DateTime;

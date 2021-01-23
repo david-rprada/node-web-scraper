@@ -3,26 +3,30 @@ const puppeteer = require('puppeteer'); // API para realizar web scraping0
 const cron = require('node-cron'); // Programdor de tareas temporizables
 const emoji = require('node-emoji'); // Emojis wa
 const clienteWA = require('./src/clientWA'); //  Cliente de WhatsApp para notificar
-const utils = require('./src/utils'); //  Clase de utilidades: fechas
+const utils = require('./src/utils/DateTime'); //  Clase de utilidades: fecha
+const horaSesion = require('./src/enums/HoraSesion'); // Clae de utilidades: horaSesion
 
 // Cargamos variables de entorno del archivo .env
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Intenta todos los días a las 5:00 am realizar una reserva en Piscina Grande en sesion 9:30 - 10:30 am
-//cron.schedule('0 5 * * *', async () => {
-(async () => {
+// Intenta todos los días a las 00:05 am realizar una inscripcion en Piscina Grande en la sesion configurada
+cron.schedule('5 0 * * *', async () => {
+//(async () => {
 
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
-    let reservaCompletada = false;
+    const inscripcionCompletada = false;
 
     try{
+        await page.setViewport({ width: 1280, height: 800 });
 
         // Vamos a la pagina de las piscinas de Salburua
         await page.goto(process.env.URL_WEB_SCRAPER);
         await page.waitForTimeout(2000);
+
+        // Cookies
+        await aceptarCookies(page);
 
         // Leemos los enlaces del día para Piscina Grande
         const enlaces = await getEnlaces(page);
@@ -30,24 +34,24 @@ dotenv.config();
         // Y los procesamos
         for (let enlaceDia of enlaces){
             
-            // Comprobamos si el día tiene plazas disponibles en la primera sesion (8:00 - 9:00)
-            let { dia, hora, selBtnReserva, isDisponible } = await checkDispPrimeraSesion(page, enlaceDia);
+            // Comprobamos si el día tiene plazas disponibles en la sesion configurada
+            let { dia, hora, selBtnInscripcion, isDisponible } = await checkDisponibilidad(page, enlaceDia);
             
-            // Si está disponible y ha podido realizar la reserva
-            if (isDisponible && await realizarReserva(page, selBtnReserva, dia, hora)){
+            // Si está disponible y ha podido realizar la inscripcion
+            if (isDisponible && await realizarInscripcion(page, selBtnInscripcion, dia, hora)){
                 
                 // Notificar por WhatsApp
-                const textoWA = `${emoji.get('robot_face')} OK! se ha completado la reserva correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
+                const textoWA = `${emoji.get('robot_face')} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
                 clienteWA.CrearMensajePOST(textoWA);
 
                 // y salimos
-                reservaCompletada = true;
+                inscripcionCompletada = true;
                 break;
             }
         }
 
-        // Si no ha podido reservar sesión en ningun día, lo notificamos por WhatsApp
-        if (!reservaCompletada){
+        // Si no ha podido inscribirse en la sesión en ningun día, lo notificamos por WhatsApp
+        if (!inscripcionCompletada){
             const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
             clienteWA.CrearMensajePOST(textoWA);
         }
@@ -55,14 +59,32 @@ dotenv.config();
         await browser.close();  
     }
     catch(error){
-
         console.log("Ha ocurrido un error -> " + error.message);
-
+        
         // Notificamos por WhatsApp el error
-        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${error.message}`;
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()} -> ${error.message}`;
         clienteWA.CrearMensajePOST(textoWA);
     }
-})();
+}, {
+    scheduled: true,
+    timezone: "Europe/Madrid"
+}); 
+
+// Acepta el posible panel de cookies
+async function aceptarCookies(page){
+    // ¿Hay panel de cookies?
+    let btnAceptarCookies = await page.evaluate((sel) => {
+        return document.querySelector(sel)
+    }, `#btnOk`);
+
+    // Si lo hay, aceptarlo para que no moleste
+    if (btnAceptarCookies && btnAceptarCookies.length > 0){
+        await Promise.all([
+            await page.click('#btnOk'),
+            page.waitForNavigation()
+        ]);
+    }
+}
 
 // Obtenemos todos los enlaces del día para la Piscina Grande
 async function getEnlaces(page){
@@ -75,10 +97,10 @@ async function getEnlaces(page){
         items.forEach((item) => { allLinks.push(item.href); })
 
         // Y devolvemos enlaces de la piscina grande x 4 días
-        //return allLinks.slice(0, 4);
+        return allLinks.slice(0, 4);
 
         // Y devolvemos enlaces de la piscina pequeña x 4 días
-        return allLinks.slice(4, 8);
+        //return allLinks.slice(4, 8);
     });
 
     // Log en consola Node.js
@@ -87,72 +109,76 @@ async function getEnlaces(page){
     return enlaces;
 }
 
-// Comprueba si la primera sesión 8:00 - 9:00 hrs para el día del enlace está disponible
-async function checkDispPrimeraSesion(page, enlace){
-    
+// Comprueba si la sesion para el día del enlace está disponible
+async function checkDisponibilidad(page, enlace){
     // Validar argumentos
     if (!page || !enlace) 
         return {isDisponible: false};
 
-    await page.goto(enlace);
-    
-    // Esperamos a tener el selector del buscador para asegurar carga DOM de la pagina
-    await page.waitForSelector('.field--search');
+    // Sesion configurada a inscribir
+    const sesion = horaSesion.getSesion(process.env.HORA_SESION);
 
+    // Navegamos al enlace
+    await Promise.all([
+        page.waitForNavigation(),
+        await page.goto(enlace)
+    ]);
+    
     // Leemos elementos de la tabla de sesiones  
     let dia = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText
-    }, '.magic-table tbody tr:nth-child(1) td:nth-child(1)');
+    }, `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(1)`);
     
     let hora = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText;
-    }, '.magic-table tbody tr:nth-child(1) td:nth-child(3)');
+    }, `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(3)`);
       
-    // ¿Tenemos plazas libres a primera hora 8:00 - 9:00?
-    let actionReserva = "";
-    let formReserva = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('.magic-table tbody tr:nth-child(1) td:nth-child(6) form'))
-        .map(el => el.action));
-    
+    // ¿Tenemos plazas libres en la sesion configurada?
+    let actionInscripcion = "";
+    let formInscripcion = await page.evaluate((sel) => {
+        return Array.from(document.querySelectorAll(sel)).map(el => el.action);
+    }, `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(6) form`);
+  
     // Si hay botón de inscripción es que hay plazas libres, guardamos el action.do
-    if (formReserva && formReserva.length == 1)
-        actionReserva = formReserva[0];
+    if (formInscripcion && formInscripcion.length == 1)
+        actionInscripcion = formInscripcion[0];
 
-    // Selector para el botón de reserva encontrado
-    let selBtnReserva = '.magic-table tbody tr:nth-child(1) td:nth-child(6) form';
+    // Selector para el botón de inscripcion encontrado
+    let selBtnInscripcion = '.magic-table tbody tr:nth-child(1) td:nth-child(6) form';
 
-    // Definimos JSON con los elementos de la reserva
-    let sesion = {dia: dia, hora: hora, selBtnReserva, isDisponible: (actionReserva !== "")};
+    // Definimos JSON con los elementos de la inscripcion
+    let inscripcion = {dia: dia, hora: hora, selBtnInscripcion: selBtnInscripcion, isDisponible: (actionInscripcion !== "")};
 
-    if (sesion.isDisponible)
-        console.log(`OK. Hay plaza libre encontrada en el día ${sesion.dia} a la hora ${sesion.hora}`);
+    if (inscripcion.isDisponible)
+        console.log(`OK. Hay plaza libre encontrada en el día ${inscripcion.dia} a la hora ${inscripcion.hora}`);
     else
-        console.log(`KO. No hay plazas libres en el día ${sesion.dia} a la hora ${sesion.hora}`);
+        console.log(`KO. No hay plazas libres en el día ${inscripcion.dia} a la hora ${inscripcion.hora}`);
 
-    return sesion;
+    return inscripcion;
 }
 
-// Completa el formulario de reserva de plaza en el día disponible encontrado
-async function realizarReserva(page, selBtnReserva, dia, hora){
+// Completa el formulario de inscripcion de plaza en el día disponible encontrado
+async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
 
     // Validar argumentos
-    if (!page || !selBtnReserva)
+    if (!page || !selBtnInscripcion)
         return false;
 
-    // Realizamos click sobre el botón de reserva encontrado
+    // Realizamos click sobre el botón de inscripcion encontrado
     await Promise.all([
         page.waitForNavigation(),
-        page.$eval(selBtnReserva, form => form.submit())
+        page.$eval(selBtnInscripcion, form => form.submit())
     ]);
         
-    // Buscamos los enlaces de tipos de reserva
+    // Buscamos los enlaces de tipos de inscripcion
     let enlaces = await page.evaluate(() =>
         Array.from(document.querySelectorAll('.contenido ul li a'))
         .map(el => el.href));
         
-    if (!enlaces || enlaces.length === 0) return false;
+    // Debe presentar 2 tipos de inscripcion: certificado o datos personales
+    if (!enlaces || enlaces.length !== 2) return false;
 
-    // Y vamos al formulario de reserva mediante enlace Datos Personales
+    // Y vamos al formulario de inscripcion mediante enlace datos personales
     let urlFormulario = enlaces[1];
     await Promise.all([
         page.waitForNavigation(),
@@ -169,21 +195,32 @@ async function realizarReserva(page, selBtnReserva, dia, hora){
     await page.select('#sexo', 'V');
 
     // Confirmar inscripción
+    try{
     await Promise.all([
         await page.click('input[type=submit]'),
         page.waitForNavigation(),
-        await page.screenshot({ path: 'reserva' + dia + '-' + hora + '.png' })
+        await page.screenshot({ path: ('inscripcion' + dia + '-' + hora + '.png')
+        .replaceAll(" ", "").replaceAll("/", "").replaceAll("\\", "").replaceAll(":", "-") })
     ]);
+    }catch (error){
 
-    // Reserva completada: btn Submit 'Justificante Actividad'
+        let textoError = 'KO! No ha podido completar la inscripción. Puede que ya tengas una reserva para la sesión -> ' + error.message;
+        console.log(textoError);
+
+        // Notificamos por WhatsApp el error
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()} -> ${textoError}`;
+        clienteWA.CrearMensajePOST(textoWA);
+    }
+
+    // Inscripcion completada: btn Submit 'Justificante Actividad'
     let btnJustificante = await page.evaluate((sel) => {
         return document.querySelector(sel);
     }, 'input[type=submit]');
 
-    // ¿Ha podido completar la reserva?
+    // ¿Ha podido completar la inscripcion?
     if (!btnJustificante || btnJustificante.innerText != 'Justificante Actividad')
         return false; 
 
-    // Si llegamos hasta aquí, ha realizado OK la reserva
+    // Si llegamos hasta aquí, ha realizado OK la inscripcion
     return true;
 }
