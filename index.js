@@ -208,7 +208,7 @@ async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
         console.log(textoError);
 
         // Notificamos por WhatsApp el error
-        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()} -> ${textoError}`;
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${textoError}`;
         clienteWA.CrearMensajePOST(textoWA);
     }
 
