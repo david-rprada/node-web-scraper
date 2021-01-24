@@ -3,7 +3,8 @@ const puppeteer = require('puppeteer'); // API para realizar web scraping0
 const cron = require('node-cron'); // Programdor de tareas temporizables
 const emoji = require('node-emoji'); // Emojis wa
 const clienteWA = require('./src/clientWA'); //  Cliente de WhatsApp para notificar
-const utils = require('./src/utils/DateTime'); //  Clase de utilidades: fecha
+const dateTime = require('./src/utils/DateTime'); //  Clase de utilidades: fecha
+const navigation = require('./src/utils/Navigation'); //  Clase de utilidades: navigation
 const horaSesion = require('./src/enums/HoraSesion'); // Clae de utilidades: horaSesion
 
 // Cargamos variables de entorno del archivo .env
@@ -21,9 +22,9 @@ cron.schedule('5 0 * * *', async () => {
     try{
         await page.setViewport({ width: 1280, height: 800 });
 
-        // Vamos a la pagina de las piscinas de Salburua
+        // URL configurada a procesar
         await page.goto(process.env.URL_WEB_SCRAPER);
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(navigation.getRandomNavTimeOut());
 
         // Cookies
         await aceptarCookies(page);
@@ -62,10 +63,10 @@ cron.schedule('5 0 * * *', async () => {
         console.log("Ha ocurrido un error -> " + error.message);
         
         // Notificamos por WhatsApp el error
-        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()} -> ${error.message}`;
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${dateTime.getDateTimeNow()} -> ${error.message}`;
         clienteWA.CrearMensajePOST(textoWA);
     }
-}, {
+},{
     scheduled: true,
     timezone: "Europe/Madrid"
 }); 
@@ -123,16 +124,26 @@ async function checkDisponibilidad(page, enlace){
         page.waitForNavigation(),
         await page.goto(enlace)
     ]);
+
+    await page.waitForTimeout(navigation.getRandomNavTimeOut());
+
+    //await page.waitForSelector('#ppd')
     
     // Leemos elementos de la tabla de sesiones  
     let dia = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText
     }, `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(1)`);
+    console.log("Dia: " + dia);
     
+    await page.waitForTimeout(2000);
+
     let hora = await page.evaluate((sel) => {
         return document.querySelector(sel).innerText;
     }, `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(3)`);
+    console.log("Hora: " + hora);
       
+    await page.waitForTimeout(navigation.getRandomNavTimeOut());
+
     // ¿Tenemos plazas libres en la sesion configurada?
     let actionInscripcion = "";
     let formInscripcion = await page.evaluate((sel) => {
@@ -164,12 +175,16 @@ async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
     if (!page || !selBtnInscripcion)
         return false;
 
+    await page.waitForTimeout(navigation.getRandomNavTimeOut());
+
     // Realizamos click sobre el botón de inscripcion encontrado
     await Promise.all([
         page.waitForNavigation(),
         page.$eval(selBtnInscripcion, form => form.submit())
     ]);
         
+    await page.waitForTimeout(navigation.getRandomNavTimeOut());
+
     // Buscamos los enlaces de tipos de inscripcion
     let enlaces = await page.evaluate(() =>
         Array.from(document.querySelectorAll('.contenido ul li a'))
@@ -208,7 +223,7 @@ async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
         console.log(textoError);
 
         // Notificamos por WhatsApp el error
-        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${utils.getDateTimeNow()}: ${textoError}`;
+        const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${dateTime.getDateTimeNow()}: ${textoError}`;
         clienteWA.CrearMensajePOST(textoWA);
     }
 
@@ -217,8 +232,10 @@ async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
         return document.querySelector(sel);
     }, 'input[type=submit]');
 
+    await page.waitForTimeout(nav.getRandomNavTimeOut());
+
     // ¿Ha podido completar la inscripcion?
-    if (!btnJustificante || btnJustificante.innerText != 'Justificante Actividad')
+    if (!btnJustificante && btnJustificante.innerText != 'Justificante Actividad')
         return false; 
 
     // Si llegamos hasta aquí, ha realizado OK la inscripcion
