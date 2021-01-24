@@ -18,5 +18,4 @@ npm install
 node index.js
 ```
 
-5) Si quieres temporizar la ejecución, se incluye en index.js comentado un ejemplo de task de node-cron
-   Más info: https://www.npmjs.com/package/node-cron
+5) Si quieres temporizar la ejecución, se incluye en index.js comentado un ejemplo de task de node-cron. Más info en: https://www.npmjs.com/package/node-cron
