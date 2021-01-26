@@ -9,7 +9,7 @@ Para instalar en local:
 ```
 npm install
 ```
-3) Pon la url del centro cívico que deseas configurar y tus datos personales para el formulario de reserva en el archivo .env.
+3) Pon la url del centro cívico que deseas observar y tus datos personales para el formulario de reserva en el archivo .env.
    Se incluye .env.example
 
 4) Ejecutar la aplicación:
