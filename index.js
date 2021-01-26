@@ -6,70 +6,80 @@ const clienteWA = require('./src/clientWA'); //  Cliente de WhatsApp para notifi
 const dateTime = require('./src/utils/DateTime'); //  Clase de utilidades: fecha
 const navigation = require('./src/utils/Navigation'); //  Clase de utilidades: navigation
 const horaSesion = require('./src/enums/HoraSesion'); // Clae de utilidades: horaSesion
+const usuarios = require('./src/data/usuarios');
 
 // Cargamos variables de entorno del archivo .env
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Intenta todos los días a las 00:05 am realizar una inscripcion en Piscina Grande en la sesion configurada
-cron.schedule('5 0 * * *', async () => {
-//(async () => {
+// Inicio: ejecutamos el proceso por cada usuario a su cron configurada
+usuarios.forEach(function(usuario) {
+    cron.schedule(usuario.cron, async () => {
+        procesarUsuario(usuario);
+    }, {
+        scheduled: true,
+        timezone: "Europe/Madrid"
+    });
+});
+
+// Procesa la reserva del usuario de acuerdo a su configuración
+async function procesarUsuario(usuario){
+        
+    if (!usuario) return;
+    console.log(`Procesando usuario -> ${usuario.nombre} ${usuario.apellido1} ${usuario.apellido2}`);
 
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
     const inscripcionCompletada = false;
-
+    
     try{
         await page.setViewport({ width: 1280, height: 800 });
-
+    
         // URL configurada a procesar
-        await page.goto(process.env.URL_WEB_SCRAPER);
+        await page.goto(usuario.urlCentroCivico);
         await page.waitForTimeout(navigation.getRandomNavTimeOut());
-
+    
         // Cookies
         await aceptarCookies(page);
-
+    
         // Leemos los enlaces del día para Piscina Grande
         const enlaces = await getEnlaces(page);
-
+    
         // Y los procesamos
         for (let enlaceDia of enlaces){
-            
-            // Comprobamos si el día tiene plazas disponibles en la sesion configurada
-            let { dia, hora, selBtnInscripcion, isDisponible } = await checkDisponibilidad(page, enlaceDia);
-            
-            // Si está disponible y ha podido realizar la inscripcion
-            if (isDisponible && await realizarInscripcion(page, selBtnInscripcion, dia, hora)){
                 
+            // Comprobamos si el día tiene plazas disponibles en la sesion configurada
+            let { dia, hora, selBtnInscripcion, isDisponible } = await checkDisponibilidad(usuario, page, enlaceDia);
+                
+            // Si está disponible y ha podido realizar la inscripcion
+            if (isDisponible && await realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora)){
+                    
                 // Notificar por WhatsApp
                 const textoWA = `${emoji.get('robot_face')} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
                 clienteWA.CrearMensajePOST(textoWA);
-
+    
                 // y salimos
                 inscripcionCompletada = true;
                 break;
             }
         }
-
+    
         // Si no ha podido inscribirse en la sesión en ningun día, lo notificamos por WhatsApp
         if (!inscripcionCompletada){
             const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
             clienteWA.CrearMensajePOST(textoWA);
         }
-                
+                    
         await browser.close();  
     }
     catch(error){
         console.log("Ha ocurrido un error -> " + error.message);
-        
+            
         // Notificamos por WhatsApp el error
         const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${dateTime.getDateTimeNow()} -> ${error.message}`;
         clienteWA.CrearMensajePOST(textoWA);
     }
-},{
-    scheduled: true,
-    timezone: "Europe/Madrid"
-}); 
+}
 
 // Acepta el posible panel de cookies
 async function aceptarCookies(page){
@@ -111,13 +121,13 @@ async function getEnlaces(page){
 }
 
 // Comprueba si la sesion para el día del enlace está disponible
-async function checkDisponibilidad(page, enlace){
+async function checkDisponibilidad(usuario, page, enlace){
     // Validar argumentos
     if (!page || !enlace) 
         return {isDisponible: false};
 
     // Sesion configurada a inscribir
-    const sesion = horaSesion.getSesion(process.env.HORA_SESION);
+    const sesion = horaSesion.getSesion(usuario.hora_sesion);
 
     // Navegamos al enlace
     await Promise.all([
@@ -169,7 +179,7 @@ async function checkDisponibilidad(page, enlace){
 }
 
 // Completa el formulario de inscripcion de plaza en el día disponible encontrado
-async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
+async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
 
     // Validar argumentos
     if (!page || !selBtnInscripcion)
@@ -201,12 +211,12 @@ async function realizarInscripcion(page, selBtnInscripcion, dia, hora){
     ]);
 
     // Rellenamos el formulario
-    await page.type('input[name=nombre]', process.env.NOMBRE);
-    await page.type('input[name=apellido1]', process.env.APELLIDO1);
-    await page.type('input[name=apellido2]', process.env.APELLIDO2);
-    await page.type('input[name=dni]', process.env.DNI);
-    await page.type('input[name=fechaNacimiento]', process.env.FECHA_NACIMIENTO);
-    await page.type('input[name=telefono]', process.env.TELEFONO);
+    await page.type('input[name=nombre]', usuario.nombre);
+    await page.type('input[name=apellido1]', usuario.apellido1);
+    await page.type('input[name=apellido2]', usuario.apellido1);
+    await page.type('input[name=dni]', usuario.dni);
+    await page.type('input[name=fechaNacimiento]', usuario.fechaNac);
+    await page.type('input[name=telefono]', usuario.movil);
     await page.select('#sexo', 'V');
 
     // Confirmar inscripción

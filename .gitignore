@@ -1,3 +1,4 @@
+  
 # Dependency directories
 node_modules/
 
@@ -5,7 +6,10 @@ node_modules/
 .npm
 
 # dotenv environment variables file
-.env
+#.env
+
+# Optional npm cache directory
+.npm
 
 # ignore all screenshots
 *.png
