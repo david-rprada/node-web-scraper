@@ -31,5 +31,5 @@ jobs:
       with:
         app-name: 'ws-natacion'
         slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_65e3e6525d3c48f98f3103b5c71b7068 }}
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_08a86192e96341ed8cf65f6d15abde86 }}
         package: .
