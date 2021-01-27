@@ -22,6 +22,7 @@ usuarios.forEach(function(usuario) {
     });
 });
 
+
 // Procesa la reserva del usuario de acuerdo a su configuración
 async function procesarUsuario(usuario){
         
@@ -56,7 +57,7 @@ async function procesarUsuario(usuario){
                     
                 // Notificar por WhatsApp
                 const textoWA = `${emoji.get('robot_face')} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
-                clienteWA.CrearMensajePOST(textoWA);
+                clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
     
                 // y salimos
                 inscripcionCompletada = true;
@@ -67,7 +68,7 @@ async function procesarUsuario(usuario){
         // Si no ha podido inscribirse en la sesión en ningun día, lo notificamos por WhatsApp
         if (!inscripcionCompletada){
             const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
-            clienteWA.CrearMensajePOST(textoWA);
+            clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
         }
                     
         await browser.close();  
@@ -77,7 +78,7 @@ async function procesarUsuario(usuario){
             
         // Notificamos por WhatsApp el error
         const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${dateTime.getDateTimeNow()} -> ${error.message}`;
-        clienteWA.CrearMensajePOST(textoWA);
+        clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
     }
 }
 
@@ -234,7 +235,7 @@ async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
 
         // Notificamos por WhatsApp el error
         const textoWA = `${emoji.get('robot_face')} Error! ocurrido a las ${dateTime.getDateTimeNow()}: ${textoError}`;
-        clienteWA.CrearMensajePOST(textoWA);
+        clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
     }
 
     // Inscripcion completada: btn Submit 'Justificante Actividad'
