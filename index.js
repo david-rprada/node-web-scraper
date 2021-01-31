@@ -12,7 +12,10 @@ const usuarios = require('./src/data/usuarios');
 const dotenv = require('dotenv');
 dotenv.config();
 
-// Inicio: ejecutamos el proceso por cada usuario a su cron configurada
+// Inicio
+console.log("Bot iniciado -> esperando a procesar usuarios...");
+
+// Ejecutamos tarea programada a su config horaria por cada usuario
 usuarios.forEach(function(usuario) {
     cron.schedule(usuario.cron, async () => {
         procesarUsuario(usuario);
