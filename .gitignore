@@ -15,5 +15,5 @@ node_modules/
 *.png
 
 # data
-src/data/usuarios.js
+usuarios.js
 
