@@ -13,7 +13,7 @@ const usuarios = [
           "movil": "686579170",
           "movilNotifE164": "+34686579170", 
           "urlCentroCivico": "https://sedeelectronica.vitoria-gasteiz.org/m01-10s/actividadAction.do?accion=verObjetivos&prog=25&cen=65&anio=2020",
-          "cron": "0 0 * * *", 
+          "cron": "31 8 * * *", 
           "hora_sesion": "8:00-9:00"
        }
     ];
