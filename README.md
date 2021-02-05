@@ -17,7 +17,7 @@ cd node-web-scraper
 npm install
 ```
 
-3) Ejecutar la aplicación:
+3) Ejecuta la aplicación:
 
 ```
 node index.js
