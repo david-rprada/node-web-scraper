@@ -5,7 +5,8 @@ const emoji = require('node-emoji'); // Emojis wa
 const clienteWA = require('./src/clientWA'); //  Cliente de WhatsApp para notificar
 const dateTime = require('./src/utils/DateTime'); //  Clase de utilidades: fecha
 const navigation = require('./src/utils/Navigation'); //  Clase de utilidades: navigation
-const horaSesion = require('./src/enums/HoraSesion'); // Clae de utilidades: horaSesion
+const horaSesion = require('./src/enums/HoraSesion'); // Clase de utilidades: horaSesion
+const pathHelper = require('./src/utils/PathHelper'); //  Clase de utilidades: pathHelper
 const usuarios = require('./src/data/usuarios');
 
 // Cargamos variables de entorno del archivo .env
@@ -71,10 +72,14 @@ async function procesarUsuario(usuario){
         // Si no ha podido inscribirse en la sesión en ningun día, lo notificamos por WhatsApp
         if (!inscripcionCompletada){
             const textoWA = `${emoji.get('robot_face')} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
+
+            console.log("Enviando mensaje a WA... -> " + textoWA);
             clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
         }
-                    
+
+        // Liberamos recursos y salimos
         await browser.close();  
+        process.exit(0);
     }
     catch(error){
         console.log("Ha ocurrido un error -> " + error.message);
@@ -228,8 +233,7 @@ async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
     await Promise.all([
         await page.click('input[type=submit]'),
         page.waitForNavigation(),
-        await page.screenshot({ path: ('inscripcion' + dia + '-' + hora + '.png')
-        .replaceAll(" ", "").replaceAll("/", "").replaceAll("\\", "").replaceAll(":", "-") })
+        await page.screenshot({ path: pathHelper.limpiarPath('inscripcion' + dia + '-' + hora + '.png') })
     ]);
     }catch (error){
 
