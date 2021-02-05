@@ -9,15 +9,11 @@ Para probar en local:
 git clone https://github.com/david-rprada/node-web-scraper.git
 ```
 
-2)  En una terminal, navega a la carpeta node-web-scrapper
+2)  En una terminal, navega a la carpeta node-web-scrapper e instala los módulos
 
 ```
 cd node-web-scraper
-```
 
-    e instala los módulos
-
-```
 npm install
 ```
 
