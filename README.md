@@ -15,7 +15,7 @@ git clone https://github.com/david-rprada/node-web-scraper.git
 cd node-web-scraper
 ```
 
-Instalar módulos
+    e instala los módulos
 
 ```
 npm install
