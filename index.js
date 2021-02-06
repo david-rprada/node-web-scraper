@@ -31,11 +31,15 @@ usuarios.forEach(function(usuario) {
 async function procesarUsuario(usuario){
         
     if (!usuario) return;
+
     console.log(`Procesando usuario -> ${usuario.nombre} ${usuario.apellido1} ${usuario.apellido2}`);
 
+    const inscripcionCompletada = false;
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
-    const inscripcionCompletada = false;
+
+    // Configura el timeout sin limite de tiempo (0) para la navegacion de la tab 
+    await page.setDefaultNavigationTimeout(0);
     
     try{
         await page.setViewport({ width: 1280, height: 800 });
