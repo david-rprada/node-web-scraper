@@ -226,7 +226,7 @@ async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
     // Rellenamos el formulario
     await page.type('input[name=nombre]', usuario.nombre);
     await page.type('input[name=apellido1]', usuario.apellido1);
-    await page.type('input[name=apellido2]', usuario.apellido1);
+    await page.type('input[name=apellido2]', usuario.apellido2);
     await page.type('input[name=dni]', usuario.dni);
     await page.type('input[name=fechaNacimiento]', usuario.fechaNac);
     await page.type('input[name=telefono]', usuario.movil);
