@@ -34,12 +34,12 @@ async function procesarUsuario(usuario){
 
     console.log(`Procesando usuario -> ${usuario.nombre} ${usuario.apellido1} ${usuario.apellido2}`);
 
-    const inscripcionCompletada = false;
+    let inscripcionCompletada = false;
     const browser = await puppeteer.launch({headless: false});
     const page = await browser.newPage();
 
-    // Configura el timeout sin limite de tiempo (0) para la navegacion de la tab 
-    await page.setDefaultNavigationTimeout(0);
+    // Configura el timeout de navegacion de la tab a 60 segs. (0 sería sin limite)
+    await page.setDefaultNavigationTimeout(60000);
     
     try{
         await page.setViewport({ width: 1280, height: 800 });
@@ -64,7 +64,9 @@ async function procesarUsuario(usuario){
             if (isDisponible && await realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora)){
                     
                 // Notificar por WhatsApp
-                const textoWA = `${emoji.get('robot_face')} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')} + ${emoji.get('swimmer')}`;
+                const textoWA = `${emoji.get('robot_face')} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get('swimmer')}`;
+                
+                console.log("Enviando mensaje a WA... -> " + textoWA);
                 clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);
     
                 // y salimos
@@ -121,10 +123,10 @@ async function getEnlaces(page){
         items.forEach((item) => { allLinks.push(item.href); })
 
         // Y devolvemos enlaces de la piscina grande x 4 días
-        return allLinks.slice(0, 4);
+        //return allLinks.slice(0, 4);
 
         // Y devolvemos enlaces de la piscina pequeña x 4 días
-        //return allLinks.slice(4, 8);
+        return allLinks.slice(4, 8);
     });
 
     // Log en consola Node.js
@@ -149,8 +151,6 @@ async function checkDisponibilidad(usuario, page, enlace){
     ]);
 
     await page.waitForTimeout(navigation.getRandomNavTimeOut());
-
-    //await page.waitForSelector('#ppd')
     
     // Leemos elementos de la tabla de sesiones  
     let dia = await page.evaluate((sel) => {
@@ -234,14 +234,16 @@ async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
 
     // Confirmar inscripción
     try{
-    await Promise.all([
-        await page.click('input[type=submit]'),
-        page.waitForNavigation(),
-        await page.screenshot({ path: pathHelper.limpiarPath('inscripcion' + dia + '-' + hora + '.png') })
-    ]);
+      
+      // Realizamos click sobre el botón de Confirmar Inscripcion (id #m0110ss)
+      await Promise.all([
+          page.waitForNavigation(),
+          await page.$eval('#m0110ss', input => input.click())
+      ]);
+
     }catch (error){
 
-        let textoError = 'KO! No ha podido completar la inscripción. Puede que ya tengas una reserva para la sesión -> ' + error.message;
+        let textoError = 'KO! No ha podido completar la inscripción-> ' + error.message;
         console.log(textoError);
 
         // Notificamos por WhatsApp el error
@@ -250,14 +252,15 @@ async function realizarInscripcion(usuario, page, selBtnInscripcion, dia, hora){
     }
 
     // Inscripcion completada: btn Submit 'Justificante Actividad'
-    let btnJustificante = await page.evaluate((sel) => {
-        return document.querySelector(sel);
-    }, 'input[type=submit]');
+    let btnJustificante = await page.$eval(
+        '.form > input[type=submit]',
+        el => el.value
+      )
 
-    await page.waitForTimeout(nav.getRandomNavTimeOut());
+    await page.waitForTimeout(navigation.getRandomNavTimeOut());
 
     // ¿Ha podido completar la inscripcion?
-    if (!btnJustificante && btnJustificante.innerText != 'Justificante Actividad')
+    if (btnJustificante != 'Justificante Actividad')
         return false; 
 
     // Si llegamos hasta aquí, ha realizado OK la inscripcion
