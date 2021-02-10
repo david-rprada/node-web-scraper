@@ -123,10 +123,10 @@ async function getEnlaces(page){
         items.forEach((item) => { allLinks.push(item.href); })
 
         // Y devolvemos enlaces de la piscina grande x 4 días
-        //return allLinks.slice(0, 4);
+        return allLinks.slice(0, 4);
 
         // Y devolvemos enlaces de la piscina pequeña x 4 días
-        return allLinks.slice(4, 8);
+        //return allLinks.slice(4, 8);
     });
 
     // Log en consola Node.js
