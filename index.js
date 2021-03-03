@@ -89,7 +89,7 @@ async function procesarUsuario(usuario) {
         // Notificar por WhatsApp
         const textoWA = `${emoji.get(
           "robot_face"
-        )} OK! se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get(
+        )} Soy Botuccio, OK! Se ha completado la inscripcion correctamente para el día ${dia} y hora ${hora}. ${emoji.get(
           "swimmer"
         )}`;
 
@@ -106,7 +106,7 @@ async function procesarUsuario(usuario) {
     if (!inscripcionCompletada) {
       const textoWA = `${emoji.get(
         "robot_face"
-      )} KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
+      )} Soy Botuccio, KO! No se ha podido reservar ningún día de los publicados. Mañana lo vuelvo a intentar... `;
 
       console.log("Enviando mensaje a WA... -> " + textoWA);
       clienteWA.CrearMensajePOST(textoWA, usuario.movilNotifE164);

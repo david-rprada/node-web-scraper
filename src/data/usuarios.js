@@ -13,23 +13,23 @@ const usuarios = [
     movilNotifE164: "+34686579170",
     urlCentroCivico:
       "https://sedeelectronica.vitoria-gasteiz.org/m01-10s/actividadAction.do?accion=verObjetivos&prog=25&cen=65&anio=2020",
-    cron: "53 10 * * *",
+    cron: "15 30 8 * * 0,1,2,3",
     hora_sesion: "8:00-9:00",
   },
 
   {
-    nombre: "Test",
-    apellido1: "Test",
-    apellido2: "Test",
-    fechaNac: "Test",
+    nombre: "Ángel",
+    apellido1: "Rodríguez",
+    apellido2: "Rodríguez",
+    fechaNac: "23/04/1950",
     sexo: "V",
-    dni: "Test",
-    movil: "Test",
+    dni: "34601250G",
+    movil: "653870077",
     movilNotifE164: "+34686579170",
     urlCentroCivico:
       "https://sedeelectronica.vitoria-gasteiz.org/m01-10s/actividadAction.do?accion=verObjetivos&prog=25&cen=65&anio=2020",
-    cron: "53 10 * * *",
-    hora_sesion: "8:00-9:00",
+    cron: "15 30 08 * * 4",
+    hora_sesion: "9:30-10:30",
   },
 ];
 
