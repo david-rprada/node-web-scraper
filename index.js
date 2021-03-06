@@ -52,7 +52,7 @@ async function procesarUsuario(usuario) {
   );
 
   let inscripcionCompletada = false;
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
 
   // Configura el timeout de navegacion de la tab a 60 segs. (0 sería sin limite)
@@ -201,8 +201,7 @@ async function checkDisponibilidad(usuario, page, enlace) {
     actionInscripcion = formInscripcion[0];
 
   // Selector para el botón de inscripcion encontrado
-  let selBtnInscripcion =
-    ".magic-table tbody tr:nth-child(1) td:nth-child(6) form";
+  let selBtnInscripcion = `.magic-table tbody tr:nth-child(${sesion}) td:nth-child(6) form`;
 
   // Definimos JSON con los elementos de la inscripcion
   let inscripcion = {

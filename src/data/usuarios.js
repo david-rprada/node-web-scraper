@@ -13,7 +13,7 @@ const usuarios = [
     movilNotifE164: "+34686579170",
     urlCentroCivico:
       "https://sedeelectronica.vitoria-gasteiz.org/m01-10s/actividadAction.do?accion=verObjetivos&prog=25&cen=65&anio=2020",
-    cron: "15 30 8 * * 0,1,2,3",
+    cron: "05 30 8 * * 0,2,4",
     hora_sesion: "8:00-9:00",
   },
 
@@ -28,7 +28,7 @@ const usuarios = [
     movilNotifE164: "+34686579170",
     urlCentroCivico:
       "https://sedeelectronica.vitoria-gasteiz.org/m01-10s/actividadAction.do?accion=verObjetivos&prog=25&cen=65&anio=2020",
-    cron: "15 30 08 * * 4",
+    cron: "05 30 8 * 4",
     hora_sesion: "9:30-10:30",
   },
 ];
