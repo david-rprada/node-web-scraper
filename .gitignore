@@ -1,0 +1,19 @@
+  
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# dotenv environment variables file
+.env
+
+# Optional npm cache directory
+.npm
+
+# ignore all screenshots
+*.png
+
+# data
+src/data/usuarios.js
+
